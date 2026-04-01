@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Повтори узор</title>
+
 <style>
 body {
     margin: 0;
@@ -56,7 +57,7 @@ body {
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    width: 360px;
+    width: 460px;
     cursor: pointer;
 }
 
@@ -69,13 +70,12 @@ body {
     justify-content: center;
     align-items: center;
     margin: 8px;
-    position: relative;
 }
 
 .item-bottom {
     width: 70px;
     margin: 10px;
-    touch-action: none;
+    cursor: grab;
 }
 
 .win {
@@ -96,7 +96,6 @@ body {
         <div id="background">
             <img id="nastya" src="png/nastya.png">
             <div id="speechBox"></div>
-
             <img class="btn" src="png/button1.png" onclick="startGame()">
         </div>
     </div>
@@ -107,7 +106,17 @@ body {
         <div id="background">
             <img id="nastya" src="png/nastya.png">
             <div id="speechBox"></div>
-            <div id="gameArea" style="position:absolute;bottom:10px;width:100%;"></div>
+            <div id="gameArea" style="position:absolute;bottom:20px;width:100%;padding-top:180px;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="screen3" class="screen">
+    <div id="gameContainer">
+        <div id="background">
+            <img id="nastya" src="png/nastya.png">
+            <div id="speechBox"></div>
+            <div id="gameArea2" style="position:absolute;bottom:20px;width:100%;padding-top:180px;"></div>
         </div>
     </div>
 </div>
@@ -117,6 +126,10 @@ body {
 <audio id="sound3" src="sounds/sound3.mp3"></audio>
 <audio id="sound4" src="sounds/sound4.mp3"></audio>
 <audio id="sound5" src="sounds/sound5.mp3"></audio>
+<audio id="sound6" src="sounds/sound6.mp3"></audio>
+<audio id="sound7" src="sounds/sound7.mp3"></audio>
+<audio id="sound8" src="sounds/sound8.mp3"></audio>
+<audio id="sound9" src="sounds/sound9.mp3"></audio>
 
 <script>
 const correctOrder = [
@@ -129,6 +142,7 @@ const correctOrder = [
 let userOrder = [null, null, null, null];
 let currentSound = null;
 let selected = null;
+const correctBear = "png/bear_red_bow.png";
 
 function getSpeechBox(){
     return document.querySelector('.screen.active #speechBox');
@@ -140,19 +154,17 @@ function playSound(id, callback=null) {
         currentSound.currentTime = 0;
     }
     currentSound = document.getElementById(id);
-    currentSound.play();
-
+    currentSound.onended = null;
+    currentSound.play().catch(()=>{});
     if(callback){
         currentSound.onended = callback;
-    } else {
-        currentSound.onended = null;
     }
 }
 
 function startGame(){
     switchScreen(2);
     const speech = getSpeechBox();
-    speech.innerText = "Я нарисовала очень красивый рисунок. Сможешь повторить?";
+    speech.innerText = "Я нарисовала очень красивый рисунок, сможешь повторить?";
     playSound("sound1", showPattern);
 }
 
@@ -164,9 +176,7 @@ function switchScreen(n){
 function showPattern(){
     const area = document.getElementById('gameArea');
     area.innerHTML = "";
-
-    const speech = getSpeechBox();
-    speech.innerText = "А теперь запоминай мой рисунок, у тебя 10 секунд.";
+    getSpeechBox().innerText = "А теперь запоминай мой рисунок, у тебя 10 секунд.";
 
     correctOrder.forEach(src=>{
         const img = document.createElement('img');
@@ -195,91 +205,139 @@ function startGamePhase(){
     }
 
     const shuffled=[...correctOrder].sort(()=>Math.random()-0.5);
-
     const container=document.createElement('div');
-
     shuffled.forEach(src=>{
-        const img=document.createElement('img');
-        img.src=src;
+        const img = document.createElement('img');
+        img.src = src;
         img.className="item-bottom";
-        enableClick(img);
+        enableDrag(img);
+        container.appendChild(img);
+    });
+
+    area.appendChild(container);
+    getSpeechBox().innerText="Попробуй нарисовать также как я.";
+    playSound("sound3");
+}
+
+function enableDrag(el){
+    el.draggable = true;
+    el.ondragstart = ()=>{ selected = el; };
+    document.querySelectorAll('.slot').forEach(slot=>{
+        slot.ondragover = (e)=> e.preventDefault();
+        slot.ondrop = (e)=>{
+            e.preventDefault();
+            if(!selected) return;
+            const index = slot.dataset.index;
+            if(slot.children.length > 0) return;
+            const clone = selected.cloneNode();
+            clone.style.width="100%";
+            clone.style.height="100%";
+            clone.style.objectFit="contain";
+            slot.appendChild(clone);
+            userOrder[index]=selected.src;
+            selected.remove();
+            selected=null;
+            checkResult();
+        };
+    });
+}
+
+function checkResult(){
+    if(userOrder.includes(null)) return;
+    let correct=true;
+    for(let i=0;i<4;i++){
+        if(!userOrder[i].includes(correctOrder[i])) correct=false;
+    }
+    if(correct){
+        getSpeechBox().innerText = "Молодец! А теперь нарисуй свой рисунок на бумаге!";
+        playSound("sound4");
+        document.querySelectorAll('.slot').forEach(s=>s.classList.add("win"));
+
+        const btn = document.createElement('img');
+        btn.src = 'png/button2.png';
+        btn.className = 'btn';
+        btn.onclick = startSecondStage;
+        document.getElementById('gameArea').appendChild(btn);
+    }else{
+        getSpeechBox().innerText = "Попробуй еще раз, запоминай внимательнее!";
+        playSound("sound5", showPattern);
+    }
+}
+
+function startSecondStage(){
+    switchScreen(3);
+    const speech = getSpeechBox();
+    speech.innerText = "";
+    const area = document.getElementById('gameArea2');
+    area.innerHTML = "";
+
+    playSound("sound6");
+    getSpeechBox().innerText = "Так, теперь другая суть игры, давай запоминай мой рисунок, и через 10 секунд выбери такой же!";
+
+    const bear = document.createElement('img');
+    bear.src = correctBear;
+    bear.style.width = "120px";
+    area.appendChild(bear);
+
+    setTimeout(()=>{
+        getSpeechBox().innerText = "Время подошло к концу! Перетащи рисунок который у меня был.";
+        showBearChoices();
+    }, 15000);
+}
+
+function showBearChoices(){
+    const area = document.getElementById('gameArea2');
+    area.innerHTML = "";
+
+    const bears = [
+        "png/bear_red_bow.png",
+        "png/bear_blue_cap.png",
+        "png/bear_with_candy.png"
+    ].sort(()=>Math.random()-0.5);
+
+    const slot = document.createElement('div');
+    slot.className = 'slot';
+    area.appendChild(slot);
+
+    const container = document.createElement('div');
+    bears.forEach(src=>{
+        const img = document.createElement('img');
+        img.src = src;
+        img.className="item-bottom";
+        enableDragSecond(img, slot);
         container.appendChild(img);
     });
 
     area.appendChild(container);
 
-    getSpeechBox().innerText="Попробуй нарисовать также как я.";
-    playSound("sound3");
+    playSound("sound7");
 }
 
-function enableClick(el){
-    el.onclick=()=>{
-        selected=el;
-        document.querySelectorAll('.item-bottom').forEach(i=>i.style.border="");
-        el.style.border="3px solid orange";
-    };
+function enableDragSecond(el, slot){
+    el.draggable = true;
+    el.ondragstart = ()=>{ selected = el; };
+    slot.ondragover = (e)=> e.preventDefault();
+    slot.ondrop = (e)=>{
+        e.preventDefault();
+        if(!selected) return;
+        if(slot.children.length>0) return;
+        const clone = selected.cloneNode();
+        clone.style.width="100%";
+        clone.style.height="100%";
+        clone.style.objectFit="contain";
+        slot.appendChild(clone);
 
-    setTimeout(()=>{
-        document.querySelectorAll('.slot').forEach(slot=>{
-            slot.onclick=()=>{
-                if(!selected) return;
-
-                const index=slot.dataset.index;
-
-                if(slot.children.length > 0) return; 
-
-                slot.innerHTML="";
-
-                const clone=selected.cloneNode();
-                clone.style.border="none";
-
-                clone.style.width="100%";
-                clone.style.height="100%";
-                clone.style.objectFit="contain";
-
-                slot.appendChild(clone);
-
-                userOrder[index]=selected.src;
-
-                selected.remove();
-                selected=null;
-
-                checkResult();
-            }
-        });
-    },100);
-}
-
-function checkResult(){
-    if(userOrder.includes(null)) return;
-
-    let correct=true;
-
-    for(let i=0;i<4;i++){
-        if(!userOrder[i].includes(correctOrder[i])){
-            correct=false;
+        if(selected.src.includes(correctBear)){
+            playSound("sound8");
+            getSpeechBox().innerText = "Молодец, ты справился с заданием!";
+        }else{
+            playSound("sound9", startSecondStage);
+            getSpeechBox().innerText = "К сожалению это не правильный ответ, я покажу своего Мишку еще раз, давай по новой!";
         }
-    }
-
-    if(correct){
-        getSpeechBox().innerText =
-        "Молодец, ты справился! А теперь сделай свой рисунок на бумаге и покажи родителям!";
-
-        playSound("sound4");
-
-        document.querySelectorAll('.slot').forEach(s=>{
-            s.classList.add("win");
-        });
-
-    }else{
-        getSpeechBox().innerText =
-        "Попробуй еще раз, я покажу узоры повторно, запоминай получше!";
-
-        playSound("sound5", ()=>{
-            showPattern();
-        });
-    }
+        selected=null;
+    };
 }
 </script>
+
 </body>
 </html>
